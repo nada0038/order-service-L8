@@ -2,9 +2,14 @@
 
 module.exports = async function (fastify, opts) {
   fastify.post('/', async function (request, reply) {
-    const msg = request.body
-    fastify.sendMessage(Buffer.from(JSON.stringify(msg)))
-    reply.code(201)
+    try {
+      const msg = request.body
+      fastify.sendMessage(Buffer.from(JSON.stringify(msg)))
+      reply.code(201).send({ status: 'success', message: 'Order submitted' })
+    } catch (error) {
+      console.error('Error submitting order:', error)
+      reply.code(500).send({ status: 'error', message: 'Failed to submit order' })
+    }
   })
 
   fastify.get('/health', async function (request, reply) {
