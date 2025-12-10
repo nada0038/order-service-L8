@@ -6,7 +6,7 @@ module.exports = fp(async function (fastify, opts) {
   fastify.decorate('sendMessage', function (message) {
     const body = message.toString()
     if (process.env.ORDER_QUEUE_USERNAME && process.env.ORDER_QUEUE_PASSWORD) {
-      console.log('sending message ${body} to ${process.env.ORDER_QUEUE_NAME} on ${process.env.ORDER_QUEUE_HOSTNAME} using local auth credentials')
+      console.log(`sending message ${body} to ${process.env.ORDER_QUEUE_NAME} on ${process.env.ORDER_QUEUE_HOSTNAME} using local auth credentials`)
       
       const rhea = require('rhea')
       const container = rhea.create_container()
@@ -15,28 +15,40 @@ module.exports = fp(async function (fastify, opts) {
       const connectOptions = {
         hostname: process.env.ORDER_QUEUE_HOSTNAME,
         host: process.env.ORDER_QUEUE_HOSTNAME,
-        port: process.env.ORDER_QUEUE_PORT,
+        port: parseInt(process.env.ORDER_QUEUE_PORT) || 5672,
         username: process.env.ORDER_QUEUE_USERNAME,
         password: process.env.ORDER_QUEUE_PASSWORD,
-        reconnect_limit: process.env.ORDER_QUEUE_RECONNECT_LIMIT || 0
+        reconnect_limit: parseInt(process.env.ORDER_QUEUE_RECONNECT_LIMIT) || 0
       }
       
       if (process.env.ORDER_QUEUE_TRANSPORT !== undefined) {
         connectOptions.transport = process.env.ORDER_QUEUE_TRANSPORT
       }
       
-      const connection = container.connect(connectOptions)
-      
-      container.once('sendable', function (context) {
-        const sender = context.sender;
-        sender.send({
-          body: amqp_message.data_section(Buffer.from(body,'utf8'))
-        });
-        sender.close();
-        connection.close();
-      })
+      try {
+        const connection = container.connect(connectOptions)
+        
+        container.once('sendable', function (context) {
+          const sender = context.sender;
+          sender.send({
+            body: amqp_message.data_section(Buffer.from(body,'utf8'))
+          });
+          sender.close();
+          connection.close();
+        })
+        
+        container.on('connection_error', function (error) {
+          console.error('Connection error:', error);
+        })
+        
+        container.on('error', function (error) {
+          console.error('Container error:', error);
+        })
 
-      connection.open_sender(process.env.ORDER_QUEUE_NAME)
+        connection.open_sender(process.env.ORDER_QUEUE_NAME)
+      } catch (error) {
+        console.error('Failed to connect to RabbitMQ:', error);
+      }
     } else if (process.env.USE_WORKLOAD_IDENTITY_AUTH === 'true') {
       const { ServiceBusClient } = require("@azure/service-bus");
       const { DefaultAzureCredential } = require("@azure/identity");
