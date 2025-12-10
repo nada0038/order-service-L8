@@ -26,6 +26,15 @@ module.exports = fp(async function (fastify, opts) {
       }
       
       try {
+        // Set up error handlers before connecting
+        container.on('connection_error', function (error) {
+          console.error('Connection error:', error);
+        })
+        
+        container.on('error', function (error) {
+          console.error('Container error:', error);
+        })
+        
         const connection = container.connect(connectOptions)
         
         container.once('sendable', function (context) {
@@ -35,14 +44,6 @@ module.exports = fp(async function (fastify, opts) {
           });
           sender.close();
           connection.close();
-        })
-        
-        container.on('connection_error', function (error) {
-          console.error('Connection error:', error);
-        })
-        
-        container.on('error', function (error) {
-          console.error('Container error:', error);
         })
 
         connection.open_sender(process.env.ORDER_QUEUE_NAME)
