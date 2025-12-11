@@ -5,8 +5,9 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"No tests available\"",
-    "start": "fastify start -l info app.js",
-    "dev": "fastify start -w -l info -P app.js"
+    "start": "fastify start -l info -a 0.0.0.0 app.js",
+    "dev": "fastify start -w -l info -P -a 0.0.0.0 app.js"
+
   },
   "keywords": [],
   "author": "",
